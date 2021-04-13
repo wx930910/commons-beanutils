@@ -16,57 +16,46 @@
  */
 package org.apache.commons.beanutils2;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
+
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 
 /**
- * A PropertyUtilsBean which customises the behaviour of the
- * setNestedProperty and getNestedProperty methods to look for
- * simple properties in preference to map entries.
+ * A PropertyUtilsBean which customises the behaviour of the setNestedProperty
+ * and getNestedProperty methods to look for simple properties in preference to
+ * map entries.
  *
  */
-public class PropsFirstPropertyUtilsBean extends PropertyUtilsBean {
+public class PropsFirstPropertyUtilsBean {
 
-    public PropsFirstPropertyUtilsBean() {
-        super();
-    }
-
-    /**
-     * Note: this is a *very rough* override of this method. In particular,
-     * it does not handle MAPPED_DELIM and INDEXED_DELIM chars in the
-     * propertyName, so propertyNames like "a(b)" or "a[3]" will not
-     * be correctly handled.
-     */
-    @Override
-    protected Object getPropertyOfMapBean(final Map<?, ?> bean, final String propertyName)
-    throws IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-
-        final PropertyDescriptor descriptor = getPropertyDescriptor(bean, propertyName);
-        if (descriptor == null) {
-            // no simple property exists so return the value from the map
-            return bean.get(propertyName);
-        }
-        // a simple property exists so return its value instead.
-        return getSimpleProperty(bean, propertyName);
-    }
-
-    /**
-     * Note: this is a *very rough* override of this method. In particular,
-     * it does not handle MAPPED_DELIM and INDEXED_DELIM chars in the
-     * propertyName, so propertyNames like "a(b)" or "a[3]" will not
-     * be correctly handled.
-     */
-    @Override
-    protected void setPropertyOfMapBean(final Map<String, Object> bean, final String propertyName, final Object value)
-        throws IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-        final PropertyDescriptor descriptor = getPropertyDescriptor(bean, propertyName);
-        if (descriptor == null) {
-            // no simple property exists so put the value into the map
-            bean.put(propertyName, value);
-        } else {
-            // a simple property exists so set that instead.
-            setSimpleProperty(bean, propertyName, value);
-        }
-    }
+	public static PropertyUtilsBean mockPropertyUtilsBean1()
+			throws InvocationTargetException, IllegalAccessException, NoSuchMethodException, IllegalArgumentException {
+		PropertyUtilsBean mockInstance = spy(new PropertyUtilsBean());
+		doAnswer((stubInvo) -> {
+			Map<?, ?> bean = stubInvo.getArgument(0);
+			String propertyName = stubInvo.getArgument(1);
+			final PropertyDescriptor descriptor = mockInstance.getPropertyDescriptor(bean, propertyName);
+			if (descriptor == null) {
+				return bean.get(propertyName);
+			}
+			return mockInstance.getSimpleProperty(bean, propertyName);
+		}).when(mockInstance).getPropertyOfMapBean(any(), any());
+		doAnswer((stubInvo) -> {
+			Map<String, Object> bean = stubInvo.getArgument(0);
+			String propertyName = stubInvo.getArgument(1);
+			Object value = stubInvo.getArgument(2);
+			final PropertyDescriptor descriptor = mockInstance.getPropertyDescriptor(bean, propertyName);
+			if (descriptor == null) {
+				bean.put(propertyName, value);
+			} else {
+				mockInstance.setSimpleProperty(bean, propertyName, value);
+			}
+			return null;
+		}).when(mockInstance).setPropertyOfMapBean(any(), any(), any());
+		return mockInstance;
+	}
 }

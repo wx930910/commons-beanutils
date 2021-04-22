@@ -16,6 +16,12 @@
  */
 package org.apache.commons.beanutils2;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
 import java.util.Arrays;
@@ -30,120 +36,102 @@ import junit.framework.TestCase;
  *
  */
 public class SuppressPropertiesBeanIntrospectorTestCase extends TestCase {
-    /**
-     * Tries to create an instance without properties.
-     */
-    public void testInitNoPropertyNames() {
-        try {
-            new SuppressPropertiesBeanIntrospector(null);
-            fail("Missing properties not detected!");
-        } catch (final IllegalArgumentException iaex) {
-            // ok
-        }
-    }
+	/**
+	 * Tries to create an instance without properties.
+	 */
+	public void testInitNoPropertyNames() {
+		try {
+			new SuppressPropertiesBeanIntrospector(null);
+			fail("Missing properties not detected!");
+		} catch (final IllegalArgumentException iaex) {
+			// ok
+		}
+	}
 
-    /**
-     * Tests whether the expected properties have been removed during introspection.
-     */
-    public void testRemovePropertiesDuringIntrospection() throws IntrospectionException {
-        final String[] properties = { "test", "other", "oneMore" };
-        final SuppressPropertiesBeanIntrospector introspector = new SuppressPropertiesBeanIntrospector(
-                Arrays.asList(properties));
-        final IntrospectionContextTestImpl context = new IntrospectionContextTestImpl();
+	/**
+	 * Tests whether the expected properties have been removed during introspection.
+	 */
+	public void testRemovePropertiesDuringIntrospection() throws IntrospectionException {
+		final String[] properties = { "test", "other", "oneMore" };
+		final SuppressPropertiesBeanIntrospector introspector = new SuppressPropertiesBeanIntrospector(
+				Arrays.asList(properties));
+		final IntrospectionContext context = mock(IntrospectionContext.class);
+		Set<String> contextRemovedProperties = new HashSet<>();
+		when(context.propertyNames()).thenAnswer((stubInvo) -> {
+			throw new UnsupportedOperationException("Unexpected method call!");
+		});
+		when(context.getPropertyDescriptor(any(String.class)))
+				.thenThrow(new UnsupportedOperationException("Unexpected method call!"));
+		doAnswer((stubInvo) -> {
+			String name = stubInvo.getArgument(0);
+			contextRemovedProperties.add(name);
+			return null;
+		}).when(context).removePropertyDescriptor(any(String.class));
+		when(context.getTargetClass()).thenAnswer((stubInvo) -> {
+			throw new UnsupportedOperationException("Unexpected method call!");
+		});
+		doThrow(new UnsupportedOperationException("Unexpected method call!")).when(context)
+				.addPropertyDescriptors(any(PropertyDescriptor[].class));
+		doThrow(new UnsupportedOperationException("Unexpected method call!")).when(context)
+				.addPropertyDescriptor(any(PropertyDescriptor.class));
+		when(context.hasProperty(any(String.class)))
+				.thenThrow(new UnsupportedOperationException("Unexpected method call!"));
 
-        introspector.introspect(context);
-        assertEquals("Wrong number of removed properties", properties.length, context
-                .getRemovedProperties().size());
-        for (final String property : properties) {
-            assertTrue("Property not removed: " + property, context
-                    .getRemovedProperties().contains(property));
-        }
-    }
+		introspector.introspect(context);
+		assertEquals("Wrong number of removed properties", properties.length, contextRemovedProperties.size());
+		for (final String property : properties) {
+			assertTrue("Property not removed: " + property, contextRemovedProperties.contains(property));
+		}
+	}
 
-    /**
-     * Tests that a defensive copy is created from the collection with properties to be
-     * removed.
-     */
-    public void testPropertyNamesDefensiveCopy() throws IntrospectionException {
-        final Collection<String> properties = new HashSet<>();
-        properties.add("prop1");
-        final SuppressPropertiesBeanIntrospector introspector = new SuppressPropertiesBeanIntrospector(
-                properties);
-        properties.add("prop2");
-        final IntrospectionContextTestImpl context = new IntrospectionContextTestImpl();
+	/**
+	 * Tests that a defensive copy is created from the collection with properties to
+	 * be removed.
+	 */
+	public void testPropertyNamesDefensiveCopy() throws IntrospectionException {
+		final Collection<String> properties = new HashSet<>();
+		properties.add("prop1");
+		final SuppressPropertiesBeanIntrospector introspector = new SuppressPropertiesBeanIntrospector(properties);
+		properties.add("prop2");
+		final IntrospectionContext context = mock(IntrospectionContext.class);
+		Set<String> contextRemovedProperties = new HashSet<>();
+		when(context.propertyNames()).thenAnswer((stubInvo) -> {
+			throw new UnsupportedOperationException("Unexpected method call!");
+		});
+		when(context.getPropertyDescriptor(any(String.class)))
+				.thenThrow(new UnsupportedOperationException("Unexpected method call!"));
+		doAnswer((stubInvo) -> {
+			String name = stubInvo.getArgument(0);
+			contextRemovedProperties.add(name);
+			return null;
+		}).when(context).removePropertyDescriptor(any(String.class));
+		when(context.getTargetClass()).thenAnswer((stubInvo) -> {
+			throw new UnsupportedOperationException("Unexpected method call!");
+		});
+		doThrow(new UnsupportedOperationException("Unexpected method call!")).when(context)
+				.addPropertyDescriptors(any(PropertyDescriptor[].class));
+		doThrow(new UnsupportedOperationException("Unexpected method call!")).when(context)
+				.addPropertyDescriptor(any(PropertyDescriptor.class));
+		when(context.hasProperty(any(String.class)))
+				.thenThrow(new UnsupportedOperationException("Unexpected method call!"));
 
-        introspector.introspect(context);
-        assertEquals("Wrong number of removed properties", 1, context
-                .getRemovedProperties().size());
-        assertTrue("Wrong removed property",
-                context.getRemovedProperties().contains("prop1"));
-    }
+		introspector.introspect(context);
+		assertEquals("Wrong number of removed properties", 1, contextRemovedProperties.size());
+		assertTrue("Wrong removed property", contextRemovedProperties.contains("prop1"));
+	}
 
-    /**
-     * Tests that the set with properties to be removed cannot be modified.
-     */
-    public void testGetSuppressedPropertiesModify() {
-        final SuppressPropertiesBeanIntrospector introspector = new SuppressPropertiesBeanIntrospector(
-                Arrays.asList("p1", "p2"));
-        final Set<String> properties = introspector.getSuppressedProperties();
-        try {
-            properties.add("anotherProperty");
-            fail("Could modify properties");
-        } catch (final UnsupportedOperationException uoex) {
-            // ok
-        }
-    }
-
-    /**
-     * A test implementation of IntrospectionContext which collects the properties which
-     * have been removed.
-     */
-    private static class IntrospectionContextTestImpl implements IntrospectionContext {
-        /** Stores the names of properties which have been removed. */
-        private final Set<String> removedProperties = new HashSet<>();
-
-        /**
-         * Returns the names of properties which have been removed.
-         *
-         * @return the set with removed properties
-         */
-        public Set<String> getRemovedProperties() {
-            return removedProperties;
-        }
-
-        @Override
-        public Class<?> getTargetClass() {
-            throw new UnsupportedOperationException("Unexpected method call!");
-        }
-
-        @Override
-        public void addPropertyDescriptor(final PropertyDescriptor desc) {
-            throw new UnsupportedOperationException("Unexpected method call!");
-        }
-
-        @Override
-        public void addPropertyDescriptors(final PropertyDescriptor[] descriptors) {
-            throw new UnsupportedOperationException("Unexpected method call!");
-        }
-
-        @Override
-        public boolean hasProperty(final String name) {
-            throw new UnsupportedOperationException("Unexpected method call!");
-        }
-
-        @Override
-        public PropertyDescriptor getPropertyDescriptor(final String name) {
-            throw new UnsupportedOperationException("Unexpected method call!");
-        }
-
-        @Override
-        public void removePropertyDescriptor(final String name) {
-            removedProperties.add(name);
-        }
-
-        @Override
-        public Set<String> propertyNames() {
-            throw new UnsupportedOperationException("Unexpected method call!");
-        }
-    }
+	/**
+	 * Tests that the set with properties to be removed cannot be modified.
+	 */
+	public void testGetSuppressedPropertiesModify() {
+		final SuppressPropertiesBeanIntrospector introspector = new SuppressPropertiesBeanIntrospector(
+				Arrays.asList("p1", "p2"));
+		final Set<String> properties = introspector.getSuppressedProperties();
+		try {
+			properties.add("anotherProperty");
+			fail("Could modify properties");
+		} catch (final UnsupportedOperationException uoex) {
+			// ok
+		}
+	}
 }
